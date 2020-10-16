@@ -4,11 +4,27 @@ import Playground exposing (..)
 
 
 main =
-    game view update ( 0, 0 )
+    game view update initialModel
 
 
 constants =
-    { gameWidth = 12 }
+    { gameWidth = 12
+    }
+
+
+gameScale computer =
+    computer.screen.width / constants.gameWidth
+
+
+toGameCoordinates : Computer -> Mouse -> { x : Float, y : Float }
+toGameCoordinates computer { x, y } =
+    let
+        k =
+            gameScale computer
+    in
+    { x = 1 / k * x
+    , y = 1 / k * y
+    }
 
 
 
@@ -16,7 +32,21 @@ constants =
 
 
 type alias Model =
-    ( Float, Float )
+    List Square
+
+
+type alias Square =
+    ( Int, Int )
+
+
+initialModel : Model
+initialModel =
+    [ ( 0, 0 )
+    , ( 1, 1 )
+    , ( 2, 2 )
+    , ( 3, 3 )
+    , ( 4, 4 )
+    ]
 
 
 
@@ -24,10 +54,19 @@ type alias Model =
 
 
 update : Computer -> Model -> Model
-update computer ( x, y ) =
-    ( x
-    , y
-    )
+update computer model =
+    if computer.mouse.click then
+        let
+            m =
+                computer.mouse |> toGameCoordinates computer
+
+            newSquare =
+                ( floor m.x, floor m.y )
+        in
+        newSquare :: model
+
+    else
+        model
 
 
 
@@ -36,18 +75,52 @@ update computer ( x, y ) =
 
 view : Computer -> Model -> List Shape
 view computer model =
-    [ group
-        (viewGame computer model)
-        |> scale (computer.screen.width / constants.gameWidth)
+    [ group (viewGame computer model)
+        |> scale (gameScale computer)
+    , viewHud computer model
     ]
 
 
+viewHud : Computer -> Model -> Shape
+viewHud computer model =
+    let
+        mouse =
+            computer.mouse |> toGameCoordinates computer
+
+        x_ =
+            mouse.x |> String.fromFloat |> String.left 4
+
+        y_ =
+            mouse.y |> String.fromFloat |> String.left 4
+    in
+    group
+        [ words black (x_ ++ ", " ++ y_)
+        ]
+        |> scale 4
+        |> moveY (computer.screen.height / 2)
+        |> moveY -30
+
+
 viewGame : Computer -> Model -> List Shape
-viewGame computer ( x, y ) =
-    gridDots
+viewGame computer model =
+    [ gridDots
+    , squares model
+    ]
 
 
-gridDots : List Shape
+squares : Model -> Shape
+squares model =
+    let
+        square ( i, j ) =
+            rectangle blue 1 1
+                |> move (toFloat i) (toFloat j)
+                |> move 0.5 0.5
+    in
+    group
+        (model |> List.map square)
+
+
+gridDots : Shape
 gridDots =
     let
         dot ( i, j ) =
@@ -60,10 +133,16 @@ gridDots =
                 ]
                 |> move (toFloat i) (toFloat j)
     in
-    cartesianProduct
-        (List.range -5 5)
-        (List.range -5 5)
-        |> List.map dot
+    group
+        (cartesianProduct
+            (List.range -5 5)
+            (List.range -5 5)
+            |> List.map dot
+        )
+
+
+
+-- HELPERS
 
 
 cartesianProduct : List a -> List b -> List ( a, b )
