@@ -1,5 +1,6 @@
 module Main exposing (main)
 
+import Dot exposing (Dot)
 import Playground exposing (..)
 
 
@@ -16,15 +17,15 @@ gameScale computer =
     computer.screen.width / constants.gameWidth
 
 
-toGameCoordinates : Computer -> Mouse -> { x : Float, y : Float }
+toGameCoordinates : Computer -> Mouse -> ( Float, Float )
 toGameCoordinates computer { x, y } =
     let
         k =
             gameScale computer
     in
-    { x = 1 / k * x
-    , y = 1 / k * y
-    }
+    ( 1 / k * x
+    , 1 / k * y
+    )
 
 
 
@@ -32,21 +33,16 @@ toGameCoordinates computer { x, y } =
 
 
 type alias Model =
-    List Square
-
-
-type alias Square =
-    ( Int, Int )
+    { level : List Shape
+    , nearestDotToPointer : Dot
+    }
 
 
 initialModel : Model
 initialModel =
-    [ ( 0, 0 )
-    , ( 1, 1 )
-    , ( 2, 2 )
-    , ( 3, 3 )
-    , ( 4, 4 )
-    ]
+    { level = []
+    , nearestDotToPointer = ( 0, 0 )
+    }
 
 
 
@@ -55,18 +51,12 @@ initialModel =
 
 update : Computer -> Model -> Model
 update computer model =
-    if computer.mouse.click then
-        let
-            m =
-                computer.mouse |> toGameCoordinates computer
-
-            newSquare =
-                ( floor m.x, floor m.y )
-        in
-        newSquare :: model
-
-    else
-        model
+    { model
+        | nearestDotToPointer =
+            computer.mouse
+                |> toGameCoordinates computer
+                |> Tuple.mapBoth round round
+    }
 
 
 
@@ -84,44 +74,33 @@ view computer model =
 viewHud : Computer -> Model -> Shape
 viewHud computer model =
     let
-        mouse =
-            computer.mouse |> toGameCoordinates computer
-
-        x_ =
-            mouse.x |> String.fromFloat |> String.left 4
-
-        y_ =
-            mouse.y |> String.fromFloat |> String.left 4
+        ( x_, y_ ) =
+            model.nearestDotToPointer
     in
     group
-        [ words black (x_ ++ ", " ++ y_)
+        [ words black (String.fromInt x_ ++ ", " ++ String.fromInt y_)
         ]
-        |> scale 4
+        |> scale 2
         |> moveY (computer.screen.height / 2)
         |> moveY -30
 
 
 viewGame : Computer -> Model -> List Shape
 viewGame computer model =
-    [ gridDots
-    , squares model
+    [ drawDots
+    , drawNearestDotToPointer model
+    , shapes model
     ]
 
 
-squares : Model -> Shape
-squares model =
-    let
-        square ( i, j ) =
-            rectangle blue 1 1
-                |> move (toFloat i) (toFloat j)
-                |> move 0.5 0.5
-    in
+shapes : Model -> Shape
+shapes model =
     group
-        (model |> List.map square)
+        []
 
 
-gridDots : Shape
-gridDots =
+drawDots : Shape
+drawDots =
     let
         dot ( i, j ) =
             group
@@ -139,6 +118,17 @@ gridDots =
             (List.range -5 5)
             |> List.map dot
         )
+
+
+drawNearestDotToPointer : Model -> Shape
+drawNearestDotToPointer model =
+    let
+        ( x, y ) =
+            model.nearestDotToPointer
+    in
+    circle red 0.3
+        |> moveX (toFloat x)
+        |> moveY (toFloat y)
 
 
 
