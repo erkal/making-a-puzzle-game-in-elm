@@ -9,23 +9,8 @@ main =
 
 
 constants =
-    { gameWidth = 12
+    { gameWidth = 13
     }
-
-
-gameScale computer =
-    computer.screen.width / constants.gameWidth
-
-
-toGameCoordinates : Computer -> Mouse -> ( Float, Float )
-toGameCoordinates computer { x, y } =
-    let
-        k =
-            gameScale computer
-    in
-    ( 1 / k * x
-    , 1 / k * y
-    )
 
 
 
@@ -53,8 +38,14 @@ update : Computer -> Model -> Model
 update computer model =
     { model
         | nearestDotToPointer =
+            let
+                toGameCoordinates { x, y } =
+                    ( x / computer.screen.width * constants.gameWidth
+                    , y / computer.screen.width * constants.gameWidth
+                    )
+            in
             computer.mouse
-                |> toGameCoordinates computer
+                |> toGameCoordinates
                 |> Tuple.mapBoth round round
     }
 
@@ -65,36 +56,23 @@ update computer model =
 
 view : Computer -> Model -> List Shape
 view computer model =
-    [ group (viewGame computer model)
-        |> scale (gameScale computer)
-    , viewHud computer model
+    [ viewGame computer model
     ]
 
 
-viewHud : Computer -> Model -> Shape
-viewHud computer model =
-    let
-        ( x_, y_ ) =
-            model.nearestDotToPointer
-    in
-    group
-        [ words black (String.fromInt x_ ++ ", " ++ String.fromInt y_)
-        ]
-        |> scale 2
-        |> moveY (computer.screen.height / 2)
-        |> moveY -30
-
-
-viewGame : Computer -> Model -> List Shape
+viewGame : Computer -> Model -> Shape
 viewGame computer model =
-    [ drawDots
-    , drawNearestDotToPointer model
-    , shapes model
-    ]
+    scale (computer.screen.width / constants.gameWidth)
+        (group
+            [ drawNearestDotToPointer model
+            , drawDots
+            , drawShapes model
+            ]
+        )
 
 
-shapes : Model -> Shape
-shapes model =
+drawShapes : Model -> Shape
+drawShapes model =
     group
         []
 
@@ -102,22 +80,29 @@ shapes model =
 drawDots : Shape
 drawDots =
     let
-        dot ( i, j ) =
+        cartesianProduct : List a -> List b -> List ( a, b )
+        cartesianProduct list1 list2 =
+            let
+                column j =
+                    list1 |> List.map (\i -> ( i, j ))
+            in
+            list2 |> List.concatMap column
+
+        allCoordinates =
+            cartesianProduct
+                (List.range -5 5)
+                (List.range -5 5)
+
+        drawDot ( i, j ) =
             group
                 [ circle blue 0.05
-
-                --, words black (String.fromInt i ++ "," ++ String.fromInt j)
-                --    |> scale 0.02
-                --    |> moveY 0.25
+                , words black (String.fromInt i ++ "/" ++ String.fromInt j)
+                    |> scale 0.02
+                    |> moveY 0.2
                 ]
                 |> move (toFloat i) (toFloat j)
     in
-    group
-        (cartesianProduct
-            (List.range -5 5)
-            (List.range -5 5)
-            |> List.map dot
-        )
+    group (List.map drawDot allCoordinates)
 
 
 drawNearestDotToPointer : Model -> Shape
@@ -129,16 +114,3 @@ drawNearestDotToPointer model =
     circle red 0.3
         |> moveX (toFloat x)
         |> moveY (toFloat y)
-
-
-
--- HELPERS
-
-
-cartesianProduct : List a -> List b -> List ( a, b )
-cartesianProduct list1 list2 =
-    let
-        column j =
-            list1 |> List.map (\i -> ( i, j ))
-    in
-    list2 |> List.concatMap column
