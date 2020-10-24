@@ -19,14 +19,14 @@ constants =
 
 
 type alias Model =
-    { level : World
+    { world : World
     , nearestDotToPointer : Dot
     }
 
 
 initialModel : Model
 initialModel =
-    { level = World.init
+    { world = World.init
     , nearestDotToPointer = ( 0, 0 )
     }
 
@@ -62,47 +62,51 @@ viewGame computer model =
         (group
             [ drawNearestDotToPointer model
             , drawDots
-            , drawShapes model
+            , drawBodies model
             ]
         )
 
 
-drawShapes : Model -> Shape
-drawShapes model =
-    group
+drawBodies : Model -> Shape
+drawBodies model =
+    polygon black
         []
+
+
+drawDot : Dot -> Shape
+drawDot ( i, j ) =
+    let
+        { x, y } =
+            Dot.position ( i, j )
+    in
+    group
+        [ circle blue 0.05
+
+        --, words black (String.fromInt i ++ "/" ++ String.fromInt j)
+        --    |> scale 0.02
+        --    |> moveY 0.2
+        ]
+        |> move x y
 
 
 drawDots : Shape
 drawDots =
+    group
+        (List.map drawDot
+            (cartesianProduct
+                (List.range -5 5)
+                (List.range -5 5)
+            )
+        )
+
+
+cartesianProduct : List a -> List b -> List ( a, b )
+cartesianProduct list1 list2 =
     let
-        cartesianProduct : List a -> List b -> List ( a, b )
-        cartesianProduct list1 list2 =
-            let
-                column j =
-                    list1 |> List.map (\i -> ( i, j ))
-            in
-            list2 |> List.concatMap column
-
-        allDots =
-            cartesianProduct
-                (List.range -5 5)
-                (List.range -5 5)
-
-        drawDot ( i, j ) =
-            let
-                { x, y } =
-                    Dot.position ( i, j )
-            in
-            group
-                [ circle blue 0.05
-                , words black (String.fromInt i ++ "/" ++ String.fromInt j)
-                    |> scale 0.02
-                    |> moveY 0.2
-                ]
-                |> move x y
+        column j =
+            list1 |> List.map (\i -> ( i, j ))
     in
-    group (List.map drawDot allDots)
+    list2 |> List.concatMap column
 
 
 drawNearestDotToPointer : Model -> Shape
