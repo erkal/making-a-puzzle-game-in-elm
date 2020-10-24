@@ -1,7 +1,8 @@
 module Main exposing (main)
 
-import Dot exposing (Dot)
 import Playground exposing (..)
+import World exposing (World)
+import World.Dot as Dot exposing (Dot)
 
 
 main =
@@ -18,14 +19,14 @@ constants =
 
 
 type alias Model =
-    { level : List Shape
+    { level : World
     , nearestDotToPointer : Dot
     }
 
 
 initialModel : Model
 initialModel =
-    { level = []
+    { level = World.init
     , nearestDotToPointer = ( 0, 0 )
     }
 
@@ -88,21 +89,25 @@ drawDots =
             in
             list2 |> List.concatMap column
 
-        allCoordinates =
+        allDots =
             cartesianProduct
                 (List.range -5 5)
                 (List.range -5 5)
 
         drawDot ( i, j ) =
+            let
+                { x, y } =
+                    Dot.position ( i, j )
+            in
             group
                 [ circle blue 0.05
                 , words black (String.fromInt i ++ "/" ++ String.fromInt j)
                     |> scale 0.02
                     |> moveY 0.2
                 ]
-                |> move (toFloat i) (toFloat j)
+                |> move x y
     in
-    group (List.map drawDot allCoordinates)
+    group (List.map drawDot allDots)
 
 
 drawNearestDotToPointer : Model -> Shape
