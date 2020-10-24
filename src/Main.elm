@@ -62,8 +62,8 @@ updateNearestDotToPointer computer model =
     { model
         | nearestDotToPointer =
             Dot.nearestTo
-                { x = computer.mouse.x / cameraScale computer
-                , y = computer.mouse.y / cameraScale computer
+                { x = computer.mouse.x * cameraScale computer
+                , y = computer.mouse.y * cameraScale computer
                 }
     }
 
@@ -127,7 +127,7 @@ view computer model =
 
 viewGame : Computer -> Model -> Shape
 viewGame computer model =
-    scale (cameraScale computer)
+    scale (1 / cameraScale computer)
         (group
             [ drawNearestDotToPointer model
             , drawDots
@@ -138,14 +138,10 @@ viewGame computer model =
 
 
 drawBodies : Model -> Shape
-drawBodies model =
+drawBodies { world } =
     group
-        ([ model.world.bodiesBefore
-         , [ model.world.activeBody ]
-         , model.world.bodiesAfter
-         ]
-            |> List.concat
-            |> List.map drawBody
+        (List.map drawBody
+            (world.bodiesBefore ++ [ world.activeBody ] ++ world.bodiesAfter)
         )
 
 
