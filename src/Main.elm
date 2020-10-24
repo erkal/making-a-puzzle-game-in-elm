@@ -2,7 +2,9 @@ module Main exposing (main)
 
 import Playground exposing (..)
 import World exposing (World)
+import World.Direction exposing (Direction)
 import World.Dot as Dot exposing (Dot)
+import World.Path as Path exposing (Path)
 
 
 main =
@@ -14,6 +16,10 @@ constants =
     }
 
 
+cameraScale computer =
+    constants.gameWidth / computer.screen.width
+
+
 
 -- MODEL
 
@@ -21,13 +27,20 @@ constants =
 type alias Model =
     { world : World
     , nearestDotToPointer : Dot
+    , editor : Editor
     }
+
+
+type Editor
+    = Idle
+    | DrawingBody Dot (List Direction)
 
 
 initialModel : Model
 initialModel =
     { world = World.init
     , nearestDotToPointer = ( 0, 0 )
+    , editor = Idle
     }
 
 
@@ -37,13 +50,69 @@ initialModel =
 
 update : Computer -> Model -> Model
 update computer model =
+    model
+        |> updateNearestDotToPointer computer
+        |> maybeStartDrawingBody computer
+        |> maybeDrawBody computer
+        |> maybeFinishDrawingBody computer
+
+
+updateNearestDotToPointer : Computer -> Model -> Model
+updateNearestDotToPointer computer model =
     { model
         | nearestDotToPointer =
             Dot.nearestTo
-                { x = computer.mouse.x / computer.screen.width * constants.gameWidth
-                , y = computer.mouse.y / computer.screen.width * constants.gameWidth
+                { x = computer.mouse.x / cameraScale computer
+                , y = computer.mouse.y / cameraScale computer
                 }
     }
+
+
+maybeStartDrawingBody : Computer -> Model -> Model
+maybeStartDrawingBody computer model =
+    case ( computer.keyboard.shift, model.editor ) of
+        ( True, Idle ) ->
+            { model
+                | editor = DrawingBody model.nearestDotToPointer []
+            }
+
+        _ ->
+            model
+
+
+maybeDrawBody : Computer -> Model -> Model
+maybeDrawBody computer model =
+    case ( computer.keyboard.shift, computer.mouse.click, model.editor ) of
+        ( True, True, DrawingBody startDot reversedOutline ) ->
+            { model
+                | editor =
+                    let
+                        lastDot =
+                            startDot |> Dot.walk (List.reverse reversedOutline)
+                    in
+                    case Dot.neighbourIn lastDot model.nearestDotToPointer of
+                        Just direction ->
+                            DrawingBody startDot ((direction |> Debug.log "") :: reversedOutline)
+
+                        Nothing ->
+                            model.editor
+            }
+
+        _ ->
+            model
+
+
+maybeFinishDrawingBody : Computer -> Model -> Model
+maybeFinishDrawingBody computer model =
+    case ( computer.keyboard.shift, model.editor ) of
+        ( False, DrawingBody startDot reversedOutline ) ->
+            { model
+                | editor = Idle
+                , world = model.world |> World.add (Path.create startDot (List.reverse reversedOutline))
+            }
+
+        _ ->
+            model
 
 
 
@@ -58,19 +127,39 @@ view computer model =
 
 viewGame : Computer -> Model -> Shape
 viewGame computer model =
-    scale (computer.screen.width / constants.gameWidth)
+    scale (cameraScale computer)
         (group
             [ drawNearestDotToPointer model
             , drawDots
             , drawBodies model
+            , drawDrawnBody model
             ]
         )
 
 
 drawBodies : Model -> Shape
 drawBodies model =
+    group
+        ([ model.world.bodiesBefore
+         , [ model.world.activeBody ]
+         , model.world.bodiesAfter
+         ]
+            |> List.concat
+            |> List.map drawBody
+        )
+
+
+drawBody : Path -> Shape
+drawBody body =
+    let
+        toPair { x, y } =
+            ( x, y )
+    in
     polygon black
-        []
+        (body
+            |> Path.dots
+            |> List.map (Dot.position >> toPair)
+        )
 
 
 drawDot : Dot -> Shape
@@ -80,13 +169,23 @@ drawDot ( i, j ) =
             Dot.position ( i, j )
     in
     group
-        [ circle blue 0.05
+        [ circle black 0.05
 
         --, words black (String.fromInt i ++ "/" ++ String.fromInt j)
         --    |> scale 0.02
         --    |> moveY 0.2
         ]
         |> move x y
+
+
+drawDrawnBody : Model -> Shape
+drawDrawnBody model =
+    case model.editor of
+        DrawingBody startDot directions ->
+            drawBody (Path.create startDot (List.reverse directions))
+
+        _ ->
+            group []
 
 
 drawDots : Shape
