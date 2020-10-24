@@ -39,15 +39,10 @@ update : Computer -> Model -> Model
 update computer model =
     { model
         | nearestDotToPointer =
-            let
-                toGameCoordinates { x, y } =
-                    ( x / computer.screen.width * constants.gameWidth
-                    , y / computer.screen.width * constants.gameWidth
-                    )
-            in
-            computer.mouse
-                |> toGameCoordinates
-                |> Tuple.mapBoth round round
+            Dot.nearestTo
+                { x = computer.mouse.x / computer.screen.width * constants.gameWidth
+                , y = computer.mouse.y / computer.screen.width * constants.gameWidth
+                }
     }
 
 
@@ -113,9 +108,8 @@ drawDots =
 drawNearestDotToPointer : Model -> Shape
 drawNearestDotToPointer model =
     let
-        ( x, y ) =
-            model.nearestDotToPointer
+        { x, y } =
+            Dot.position model.nearestDotToPointer
     in
     circle red 0.3
-        |> moveX (toFloat x)
-        |> moveY (toFloat y)
+        |> move x y

@@ -1,5 +1,6 @@
 module World.Dot exposing
     ( Dot
+    , nearestTo
     , position
     , rotate60DegreesCCW
     , translateBy
@@ -10,6 +11,24 @@ import Point exposing (Point)
 
 type alias Dot =
     ( Int, Int )
+
+
+nearestTo : Point -> Dot
+nearestTo point =
+    let
+        { x, y } =
+            point |> toTrixelCoordinates
+    in
+    ( round x
+    , round y
+    )
+
+
+toTrixelCoordinates : Point -> Point
+toTrixelCoordinates { x, y } =
+    Point
+        (x / cos (degrees 30))
+        (y - x * sin (degrees 30))
 
 
 position : Dot -> Point
