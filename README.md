@@ -7,8 +7,8 @@ Then, you can clone this repo, navigate into it and run elm reactor.
 
 > For doing this, you can paste the following lines into your terminal and hit enter. 
 > 
-> ```
+> ```bash
 > git clone https://github.com/erkal/making-a-puzzle-game-in-elm.git
-> cd making-a-puzzle-game-in-elm.git
+> cd making-a-puzzle-game-in-elm
 > elm reactor
 > ```
